@@ -15,24 +15,68 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             background-color: black;
             font-family: 'Itim', cursive;
+            touch-action: none; /* Prevent default touch actions */
         }
         #game-container {
             position: relative;
             border: 4px solid white;
+            width: 100%;
+            max-width: 640px;
+            aspect-ratio: 1;
         }
         #score-display {
             position: absolute;
             top: 20px;
             left: 20px;
             color: white;
-            font-size: 24px;
+            font-size: clamp(16px, 4vw, 24px);
             z-index: 10;
             border: 2px solid white;
             padding: 10px 20px;
             font-family: 'Itim', cursive;
+        }
+        #mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+        }
+        .control-button {
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            touch-action: none;
+        }
+        #controls-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+        #up-btn { grid-column: 2; }
+        #left-btn { grid-column: 1; grid-row: 2; }
+        #right-btn { grid-column: 3; grid-row: 2; }
+        #down-btn { grid-column: 2; grid-row: 3; }
+        @media (max-width: 768px) {
+            #mobile-controls {
+                display: block;
+            }
+            #game-container {
+                margin: 20px;
+            }
         }
     </style>
 </head>
@@ -41,13 +85,30 @@
         <div id="score-display">0000</div>
         <div id="game"></div>
     </div>
+    
+    <div id="mobile-controls">
+        <div id="controls-container">
+            <button id="up-btn" class="control-button">↑</button>
+            <button id="left-btn" class="control-button">←</button>
+            <button id="right-btn" class="control-button">→</button>
+            <button id="down-btn" class="control-button">↓</button>
+        </div>
+    </div>
 
     <script>
+        // Calculate game size based on screen
+        function calculateGameSize() {
+            const width = Math.min(window.innerWidth - 40, 640);
+            const height = width; // Keep it square
+            return { width, height };
+        }
+
         // Game configuration
+        const gameSize = calculateGameSize();
         const config = {
             type: Phaser.AUTO,
-            width: 640,
-            height: 640,
+            width: gameSize.width,
+            height: gameSize.height,
             backgroundColor: '#000000',
             parent: 'game',
             scene: {
@@ -349,8 +410,11 @@
                 head: null
             };
 
+            const centerX = config.width / 2;
+            const centerY = config.height / 2;
+
             // Create snake head
-            snake.head = scene.add.sprite(320, 240, 'snake-head-red');
+            snake.head = scene.add.sprite(centerX, centerY, 'snake-head-red');
             // Set origin to better align with the body
             snake.head.setOrigin(0.25, 0.5);
             snake.body.push(snake.head);
@@ -368,9 +432,48 @@
             // Set up keyboard controls
             cursors = scene.input.keyboard.createCursorKeys();
 
+            // Set up mobile controls
+            setupMobileControls();
+
             // Initialize score display
             scoreText = document.getElementById('score-display');
             updateScore(0);
+
+            // Handle window resize
+            window.addEventListener('resize', handleResize);
+        }
+
+        // Setup mobile controls
+        function setupMobileControls() {
+            const upBtn = document.getElementById('up-btn');
+            const downBtn = document.getElementById('down-btn');
+            const leftBtn = document.getElementById('left-btn');
+            const rightBtn = document.getElementById('right-btn');
+
+            function handleTouch(direction) {
+                if ((direction === 'up' && nextDirection !== 'down') ||
+                    (direction === 'down' && nextDirection !== 'up') ||
+                    (direction === 'left' && nextDirection !== 'right') ||
+                    (direction === 'right' && nextDirection !== 'left')) {
+                    nextDirection = direction;
+                }
+            }
+
+            upBtn.addEventListener('touchstart', () => handleTouch('up'));
+            downBtn.addEventListener('touchstart', () => handleTouch('down'));
+            leftBtn.addEventListener('touchstart', () => handleTouch('left'));
+            rightBtn.addEventListener('touchstart', () => handleTouch('right'));
+        }
+
+        // Handle window resize
+        function handleResize() {
+            const newSize = calculateGameSize();
+            game.scale.resize(newSize.width, newSize.height);
+            
+            // Update game container size
+            const container = document.getElementById('game-container');
+            container.style.width = `${newSize.width}px`;
+            container.style.height = `${newSize.height}px`;
         }
 
         // Game update loop
